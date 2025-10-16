@@ -1,6 +1,6 @@
 # 🚀 MuleSoft CI/CD Pipeline with GitHub Actions & Anypoint CLI (CloudHub 2.0)
 
-This guide automates building, testing, publishing, and deploying MuleSoft applications using **GitHub Actions** and **Anypoint CLI v4**, following MuleSoft’s official blog:
+Automate your Mule application build, publish, and deployment process using **GitHub Actions** and **Anypoint CLI v4**, following MuleSoft’s official guide:  
 👉 [Automate CI/CD Pipelines with GitHub Actions and Anypoint CLI](https://blogs.mulesoft.com/dev-guides/automate-ci-cd-pipelines-with-github-actions-and-anypoint-cli/)
 
 ---
@@ -8,37 +8,177 @@ This guide automates building, testing, publishing, and deploying MuleSoft appli
 ## 🧩 Overview
 
 This pipeline:
-- Builds and tests your Mule app via **Maven**
-- Publishes the packaged artifact to **Anypoint Exchange**
-- Deploys the artifact to **CloudHub 2.0** via **Anypoint CLI v4**
-- Can be manually triggered or automatically on commits/tags
+- Builds and tests your Mule app using Maven
+- Publishes artifacts to **Anypoint Exchange**
+- Deploys to **CloudHub 2.0** via **Anypoint CLI v4**
+- Can be triggered automatically or manually
 
 ---
 
 ## ⚙️ Prerequisites
 
-1. **Connected App** in [Anypoint Access Management](https://anypoint.mulesoft.com/accounts/).
-   - Grant the following scopes:
-     - `View Environments`
-     - `Manage Applications`
-     - `View Organizations`
-     - (Optional) `Exchange Contributor`
+### 1. Create a Connected App in Anypoint Platform
+In **Access Management → Connected Apps → Create App**:
+- Select **Client Credentials** grant type  
+- Add the following **permissions**:
+  - View Environments
+  - Manage Applications
+  - View Organizations
+  - Exchange Contributor (optional)
 
-2. **GitHub Repository Secrets**
-   Add these secrets under:  
-   **Settings → Secrets → Actions → New repository secret**
-
-   | Secret Name | Description |
-   |--------------|-------------|
-   | `CONNECTED_APP_CLIENT_ID` | Client ID from Connected App |
-   | `CONNECTED_APP_CLIENT_SECRET` | Client Secret from Connected App |
-   | `ANYPOINT_ORG` | Your Organization ID |
-   | `ANYPOINT_ENV` | Target environment (e.g., `Sandbox`, `QA`, `Production`) |
-   | `GROUP_ID` | Your Exchange groupId (if different from org ID) |
-   | `DEPLOYMENT_TARGET_ID` | Target ID for CloudHub 2.0 space/region (e.g., `cloudhub-us-east-1`) |
-
-   > 🧠 Tip: You can find the `deploymentTargetId` in Runtime Manager → Deployment Targets.
+After saving, note:
+- `Client ID`
+- `Client Secret`
 
 ---
 
-## 🧱 Folder Structure
+### 2. Configure GitHub Secrets
+
+In your GitHub repo, go to:  
+**Settings → Secrets and variables → Actions**
+
+Add the following secrets:
+
+| Secret Name | Description |
+|--------------|-------------|
+| `CONNECTED_APP_CLIENT_ID` | Client ID from Connected App |
+| `CONNECTED_APP_CLIENT_SECRET` | Client Secret from Connected App |
+| `ANYPOINT_ORG` | Organization ID |
+| `ANYPOINT_ENV` | Environment name (e.g., Sandbox, QA, Production) |
+| `GROUP_ID` | Exchange group ID (if different from org ID) |
+| `DEPLOYMENT_TARGET_ID` | CloudHub 2.0 space/region ID (e.g., `cloudhub-us-east-1`) |
+
+> 💡 You can find the `deploymentTargetId` under Runtime Manager → Deployment Targets.
+
+---
+
+## 🧱 Project Structure
+
+```
+your-mule-app/
+├── src/
+│   └── main/mule/
+├── pom.xml
+└── .github/
+    └── workflows/
+        └── build.yml
+```
+
+---
+
+## 🚦 GitHub Actions Workflow
+
+Create the workflow file:
+
+**`.github/workflows/build.yml`**
+
+```yaml
+name: MuleSoft CI/CD with Anypoint CLI
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+    inputs:
+      promote_to:
+        description: "Target environment (e.g., Sandbox, QA, Production)"
+        required: false
+        default: "Sandbox"
+
+permissions:
+  contents: read
+
+env:
+  ANYPOINT_CLIENT_ID:      ${{ secrets.CONNECTED_APP_CLIENT_ID }}
+  ANYPOINT_CLIENT_SECRET:  ${{ secrets.CONNECTED_APP_CLIENT_SECRET }}
+  ANYPOINT_ORG:            ${{ secrets.ANYPOINT_ORG }}
+  ANYPOINT_ENV:            ${{ secrets.ANYPOINT_ENV }}
+  GROUP_ID:                ${{ secrets.GROUP_ID }}
+  DEPLOYMENT_TARGET_ID:    ${{ secrets.DEPLOYMENT_TARGET_ID }}
+
+jobs:
+  build_and_publish_to_exchange:
+    name: Build (Maven) + Publish to Exchange
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+
+      - name: Build & Test
+        run: mvn -B -U -DskipTests=false clean verify
+
+      - name: Publish to Anypoint Exchange
+        run: |
+          mvn -B -U -DskipTests             -DconnectedAppClientId="$ANYPOINT_CLIENT_ID"             -DconnectedAppClientSecret="$ANYPOINT_CLIENT_SECRET"             -DanypointOrganization="$ANYPOINT_ORG"             deploy
+
+      - name: Extract GAV
+        id: gav
+        run: |
+          echo "artifactId=$(mvn -q -Dexec.executable=echo -Dexec.args='${project.artifactId}' --non-recursive org.codehaus.mojo:exec-maven-plugin:3.1.0:exec)" >> $GITHUB_OUTPUT
+          echo "groupId=$(mvn -q -Dexec.executable=echo -Dexec.args='${project.groupId}' --non-recursive org.codehaus.mojo:exec-maven-plugin:3.1.0:exec)"       >> $GITHUB_OUTPUT
+          echo "version=$(mvn -q -Dexec.executable=echo -Dexec.args='${project.version}' --non-recursive org.codehaus.mojo:exec-maven-plugin:3.1.0:exec)"      >> $GITHUB_OUTPUT
+
+  deploy_ch2:
+    name: Deploy to CloudHub 2.0 (Anypoint CLI v4)
+    needs: build_and_publish_to_exchange
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node for Anypoint CLI
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Anypoint CLI v4
+        run: npm i -g anypoint-cli-v4
+
+      - name: Verify CLI
+        run: anypoint-cli-v4 --version
+
+      - name: List Applications (Sanity Check)
+        run: anypoint-cli-v4 runtime-mgr:application:list --output json | jq length
+
+      - name: Deploy to CloudHub 2.0
+        env:
+          ARTIFACT_ID: ${{ steps.gav.outputs.artifactId }}
+          ASSET_VERSION: ${{ steps.gav.outputs.version }}
+          APP_NAME: ${{ steps.gav.outputs.artifactId }}-dev
+          RUNTIME_VER: "4.6.4"
+        run: |
+          anypoint-cli-v4 runtime-mgr:application:deploy             --name "$APP_NAME"             --deploymentTargetId "$DEPLOYMENT_TARGET_ID"             --groupId "${GROUP_ID:-$ANYPOINT_ORG}"             --artifactId "$ARTIFACT_ID"             --assetVersion "$ASSET_VERSION"             --runtimeVersion "$RUNTIME_VER"             --javaVersion 17             --replicas 1             --replicaSize 0.1             --objectStoreV2             --releaseChannel LTS
+```
+
+---
+
+## ✅ Post-Deployment Validation
+
+You can verify deployments using the Anypoint CLI or Runtime Manager UI:
+
+```bash
+anypoint-cli-v4 runtime-mgr:application:list
+anypoint-cli-v4 runtime-mgr:application:describe <app-name>
+```
+
+---
+
+## 🧠 Notes & Tips
+
+- CloudHub 2.0 deployments **must** reference an artifact in Exchange.
+- Use Java 17 for Mule runtime 4.6+.
+- Add `--updateAutoRestart true` and `--replicas 2` for blue/green deploys.
+- Create separate workflows or environments for QA and PROD with approvals.
+
+---
+
+**Author:** Leul Muhidin  
+**Pipeline:** GitHub Actions → CloudHub 2.0  
+**Last Updated:** October 2025
