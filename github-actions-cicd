@@ -1,0 +1,44 @@
+# 🚀 MuleSoft CI/CD Pipeline with GitHub Actions & Anypoint CLI (CloudHub 2.0)
+
+This guide automates building, testing, publishing, and deploying MuleSoft applications using **GitHub Actions** and **Anypoint CLI v4**, following MuleSoft’s official blog:
+👉 [Automate CI/CD Pipelines with GitHub Actions and Anypoint CLI](https://blogs.mulesoft.com/dev-guides/automate-ci-cd-pipelines-with-github-actions-and-anypoint-cli/)
+
+---
+
+## 🧩 Overview
+
+This pipeline:
+- Builds and tests your Mule app via **Maven**
+- Publishes the packaged artifact to **Anypoint Exchange**
+- Deploys the artifact to **CloudHub 2.0** via **Anypoint CLI v4**
+- Can be manually triggered or automatically on commits/tags
+
+---
+
+## ⚙️ Prerequisites
+
+1. **Connected App** in [Anypoint Access Management](https://anypoint.mulesoft.com/accounts/).
+   - Grant the following scopes:
+     - `View Environments`
+     - `Manage Applications`
+     - `View Organizations`
+     - (Optional) `Exchange Contributor`
+
+2. **GitHub Repository Secrets**
+   Add these secrets under:  
+   **Settings → Secrets → Actions → New repository secret**
+
+   | Secret Name | Description |
+   |--------------|-------------|
+   | `CONNECTED_APP_CLIENT_ID` | Client ID from Connected App |
+   | `CONNECTED_APP_CLIENT_SECRET` | Client Secret from Connected App |
+   | `ANYPOINT_ORG` | Your Organization ID |
+   | `ANYPOINT_ENV` | Target environment (e.g., `Sandbox`, `QA`, `Production`) |
+   | `GROUP_ID` | Your Exchange groupId (if different from org ID) |
+   | `DEPLOYMENT_TARGET_ID` | Target ID for CloudHub 2.0 space/region (e.g., `cloudhub-us-east-1`) |
+
+   > 🧠 Tip: You can find the `deploymentTargetId` in Runtime Manager → Deployment Targets.
+
+---
+
+## 🧱 Folder Structure
