@@ -176,6 +176,6 @@ anypoint-cli-v4 runtime-mgr:application:describe <app-name>
 
 ---
 
-**Author:** Leul Yakot  
+**Author:** Leul Muhidin  
 **Pipeline:** GitHub Actions → CloudHub 2.0  
 **Last Updated:** October 2025
