@@ -1,8 +1,5 @@
 # 🚀 MuleSoft CI/CD Pipeline with GitHub Actions & Anypoint CLI (CloudHub 2.0)
 
-Automate your Mule application build, publish, and deployment process using **GitHub Actions** and **Anypoint CLI v4**, following MuleSoft’s official guide:  
-👉 [Automate CI/CD Pipelines with GitHub Actions and Anypoint CLI](https://blogs.mulesoft.com/dev-guides/automate-ci-cd-pipelines-with-github-actions-and-anypoint-cli/)
-
 ---
 
 ## 🧩 Overview
