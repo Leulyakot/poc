@@ -71,17 +71,20 @@ In **GitHub → Settings → Secrets and Variables → Actions**, add:
 Create a file at `.github/workflows/mule-cicd.yml`:
 
 ```yaml
-name: MuleSoft CI/CD Pipeline (GovCloud)
+name: MuleSoft Multi-Env CI/CD (GovCloud)
 
 on:
   push:
-    branches: [ main ]
+    branches: [ develop ]
+  pull_request:
+    types: [closed]
+    branches: [ staging, master ]
 
 jobs:
-  # 🏗️ BUILD JOB
   build:
     name: 🏗️ Build Mule Application
     runs-on: ubuntu-latest
+    if: github.event.pull_request.merged == true || github.ref == 'refs/heads/develop'
 
     steps:
       - name: Checkout Repository
@@ -93,7 +96,7 @@ jobs:
           distribution: 'temurin'
           java-version: '8'
 
-      - name: Cache Maven Packages
+      - name: Cache Maven Dependencies
         uses: actions/cache@v4
         with:
           path: ~/.m2
@@ -111,11 +114,11 @@ jobs:
           path: target/*.jar
 
 
-  # 🚀 DEPLOY JOB
   deploy:
     name: 🚀 Deploy to Anypoint GovCloud
     runs-on: ubuntu-latest
     needs: [build]
+    if: github.event.pull_request.merged == true || github.ref == 'refs/heads/develop'
     environment: production
 
     steps:
@@ -130,14 +133,30 @@ jobs:
           distribution: 'temurin'
           java-version: '8'
 
-      - name: Deploy to GovCloud
+      - name: Determine Target Environment
+        id: envmap
+        run: |
+          # Determine target Mule environment based on branch or PR target
+          if [[ "${GITHUB_REF##*/}" == "develop" ]]; then
+            echo "env_name=Development" >> $GITHUB_OUTPUT
+          elif [[ "${GITHUB_BASE_REF}" == "staging" ]]; then
+            echo "env_name=Staging" >> $GITHUB_OUTPUT
+          elif [[ "${GITHUB_BASE_REF}" == "master" ]]; then
+            echo "env_name=Production" >> $GITHUB_OUTPUT
+          else
+            echo "Unknown environment for ${GITHUB_REF##*/}"
+            exit 1
+          fi
+
+      - name: Deploy to MuleSoft GovCloud
         env:
           ANYPOINT_CLIENT_ID: ${{ secrets.ANYPOINT_CLIENT_ID }}
           ANYPOINT_CLIENT_SECRET: ${{ secrets.ANYPOINT_CLIENT_SECRET }}
-          ANYPOINT_ENV: ${{ secrets.ANYPOINT_ENV }}
           ANYPOINT_BUSINESS_GROUP_ID: ${{ secrets.ANYPOINT_BUSINESS_GROUP_ID }}
           ANYPOINT_PLATFORM_URL: ${{ secrets.ANYPOINT_PLATFORM_URL }}
+          ANYPOINT_ENV: ${{ steps.envmap.outputs.env_name }}
         run: |
+          echo "Deploying to $ANYPOINT_ENV environment..."
           mvn mule:deploy \
             -Danypoint.platform.clientId=${ANYPOINT_CLIENT_ID} \
             -Danypoint.platform.clientSecret=${ANYPOINT_CLIENT_SECRET} \
