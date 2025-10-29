@@ -45,23 +45,121 @@ In **GitHub → Settings → Secrets and Variables → Actions**, add:
 ## ⚙️ Mule Maven Plugin Configuration (pom.xml)
 
 ```xml
-<plugin>
-  <groupId>org.mule.tools.maven</groupId>
-  <artifactId>mule-maven-plugin</artifactId>
-  <version>3.9.0</version>
-  <configuration>
-    <deploymentType>cloudHub</deploymentType>
-    <cloudHubDeployment>
-      <uri>${anypoint.platform.url}</uri>
-      <muleVersion>4.5.2</muleVersion>
-      <environment>${anypoint.env}</environment>
-      <businessGroup>${anypoint.businessGroupId}</businessGroup>
-      <applicationName>${project.artifactId}</applicationName>
-      <workers>1</workers>
-      <workerType>Micro</workerType>
-    </cloudHubDeployment>
-  </configuration>
-</plugin>
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+                             https://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+  <!-- ================================================================ -->
+  <!-- Basic Mule App Configuration -->
+  <!-- ================================================================ -->
+  <modelVersion>4.0.0</modelVersion>
+
+  <!-- ✅ Replace with your Mule application name -->
+  <groupId>com.yourcompany.mule</groupId>
+  <artifactId>your-app-name</artifactId>
+  <version>1.0.0</version>
+  <packaging>mule-application</packaging>
+  <name>${project.artifactId}</name>
+  <description>MuleSoft Application deployed to GovCloud</description>
+
+  <!-- ================================================================ -->
+  <!-- Mule Runtime & Plugin Versions -->
+  <!-- ================================================================ -->
+  <properties>
+    <mule.maven.plugin.version>3.9.0</mule.maven.plugin.version>
+    <mule.runtime.version>4.6.3</mule.runtime.version>
+    <encoding>UTF-8</encoding>
+  </properties>
+
+  <!-- ================================================================ -->
+  <!-- MuleSoft Repositories (Maven will read these or from settings.xml) -->
+  <!-- ================================================================ -->
+  <repositories>
+    <repository>
+      <id>mulesoft-releases</id>
+      <name>MuleSoft Releases</name>
+      <url>https://maven.anypoint.mulesoft.com/api/v1/maven</url>
+      <releases><enabled>true</enabled></releases>
+      <snapshots><enabled>false</enabled></snapshots>
+    </repository>
+    <repository>
+      <id>mulesoft-snapshots</id>
+      <name>MuleSoft Snapshots</name>
+      <url>https://maven.anypoint.mulesoft.com/api/v1/maven-snapshots</url>
+      <releases><enabled>false</enabled></releases>
+      <snapshots><enabled>true</enabled></snapshots>
+    </repository>
+  </repositories>
+
+  <!-- ================================================================ -->
+  <!-- Dependencies -->
+  <!-- ================================================================ -->
+  <dependencies>
+    <!-- ✅ Core Mule runtime -->
+    <dependency>
+      <groupId>org.mule.runtime</groupId>
+      <artifactId>mule-core</artifactId>
+      <version>${mule.runtime.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- ✅ Add your Mule connectors or custom modules here -->
+    <!-- Example: HTTP connector -->
+    <dependency>
+      <groupId>org.mule.connectors</groupId>
+      <artifactId>mule-http-connector</artifactId>
+      <version>1.9.0</version>
+      <classifier>mule-plugin</classifier>
+    </dependency>
+
+    <!-- Example: JSON module -->
+    <dependency>
+      <groupId>org.mule.modules</groupId>
+      <artifactId>mule-json-module</artifactId>
+      <version>2.1.2</version>
+      <classifier>mule-plugin</classifier>
+    </dependency>
+
+    <!-- Example: Salesforce connector (if needed)
+    <dependency>
+      <groupId>org.mule.connectors</groupId>
+      <artifactId>mule-sfdc-connector</artifactId>
+      <version>10.19.0</version>
+      <classifier>mule-plugin</classifier>
+    </dependency>
+    -->
+  </dependencies>
+
+  <!-- ================================================================ -->
+  <!-- Mule Maven Plugin for Build & Deployment -->
+  <!-- ================================================================ -->
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.mule.tools.maven</groupId>
+        <artifactId>mule-maven-plugin</artifactId>
+        <version>${mule.maven.plugin.version}</version>
+        <extensions>true</extensions>
+        <configuration>
+          <!-- These parameters get replaced by your GitHub Actions secrets -->
+          <deploymentType>cloudHub</deploymentType>
+          <cloudHubDeployment>
+            <uri>${anypoint.platform.url}</uri>
+            <muleVersion>${mule.runtime.version}</muleVersion>
+            <applicationName>${project.artifactId}</applicationName>
+            <environment>${anypoint.env}</environment>
+            <businessGroup>${anypoint.businessGroup}</businessGroup>
+            <workers>1</workers>
+            <workerType>Micro</workerType>
+          </cloudHubDeployment>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+
+</project>
 ```
 
 ---
