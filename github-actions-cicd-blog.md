@@ -42,6 +42,76 @@ In **GitHub → Settings → Secrets and Variables → Actions**, add:
 
 ---
 
+## Settings.xml
+
+```xml
+<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0
+                              https://maven.apache.org/xsd/settings-1.0.0.xsd">
+
+  <localRepository>${user.home}/.m2/repository</localRepository>
+
+  <servers>
+    <server>
+      <id>anypoint-exchange</id>
+      <username>${env.ANYPOINT_CLIENT_ID}</username>
+      <password>${env.ANYPOINT_CLIENT_SECRET}</password>
+    </server>
+
+    <server>
+      <id>mulesoft-releases</id>
+      <username>${env.ANYPOINT_CLIENT_ID}</username>
+      <password>${env.ANYPOINT_CLIENT_SECRET}</password>
+    </server>
+
+    <server>
+      <id>mulesoft-snapshots</id>
+      <username>${env.ANYPOINT_CLIENT_ID}</username>
+      <password>${env.ANYPOINT_CLIENT_SECRET}</password>
+    </server>
+  </servers>
+
+  <profiles>
+    <profile>
+      <id>mulesoft-repos</id>
+
+      <repositories>
+        <repository>
+          <id>mulesoft-releases</id>
+          <name>MuleSoft Releases</name>
+          <url>https://maven.anypoint.mulesoft.com/api/v1/maven</url>
+          <releases><enabled>true</enabled></releases>
+          <snapshots><enabled>false</enabled></snapshots>
+        </repository>
+
+        <repository>
+          <id>mulesoft-snapshots</id>
+          <name>MuleSoft Snapshots</name>
+          <url>https://maven.anypoint.mulesoft.com/api/v1/maven-snapshots</url>
+          <releases><enabled>false</enabled></releases>
+          <snapshots><enabled>true</enabled></snapshots>
+        </repository>
+      </repositories>
+
+      <pluginRepositories>
+        <pluginRepository>
+          <id>mulesoft-plugin-releases</id>
+          <name>MuleSoft Plugin Releases</name>
+          <url>https://maven.anypoint.mulesoft.com/api/v1/maven</url>
+          <releases><enabled>true</enabled></releases>
+          <snapshots><enabled>false</enabled></snapshots>
+        </pluginRepository>
+      </pluginRepositories>
+    </profile>
+  </profiles>
+
+  <activeProfiles>
+    <activeProfile>mulesoft-repos</activeProfile>
+  </activeProfiles>
+</settings>
+```
+
 ## ⚙️ Mule Maven Plugin Configuration (pom.xml)
 
 ```xml
@@ -253,9 +323,10 @@ jobs:
           ANYPOINT_BUSINESS_GROUP_ID: ${{ secrets.ANYPOINT_BUSINESS_GROUP_ID }}
           ANYPOINT_PLATFORM_URL: ${{ secrets.ANYPOINT_PLATFORM_URL }}
           ANYPOINT_ENV: ${{ steps.envmap.outputs.env_name }}
+
+      - name: Deploy to MuleSoft GovCloud
         run: |
-          echo "Deploying to $ANYPOINT_ENV environment..."
-          mvn mule:deploy \
+          mvn -s .github/mvn/settings.xml mule:deploy \
             -Danypoint.platform.clientId=${ANYPOINT_CLIENT_ID} \
             -Danypoint.platform.clientSecret=${ANYPOINT_CLIENT_SECRET} \
             -Danypoint.platform.url=${ANYPOINT_PLATFORM_URL} \
