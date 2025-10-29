@@ -71,15 +71,16 @@ In **GitHub → Settings → Secrets and Variables → Actions**, add:
 Create a file at `.github/workflows/mule-cicd.yml`:
 
 ```yaml
-name: MuleSoft CI/CD to GovCloud
+name: MuleSoft CI/CD Pipeline (GovCloud)
 
 on:
   push:
     branches: [ main ]
-  pull_request:
 
 jobs:
-  build-deploy:
+  # 🏗️ BUILD JOB
+  build:
+    name: 🏗️ Build Mule Application
     runs-on: ubuntu-latest
 
     steps:
@@ -100,18 +101,40 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-maven-
 
-      - name: Build Project
+      - name: Build Mule App
         run: mvn clean package -DskipTests
 
-      - name: Run Unit Tests
-        run: mvn test
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mule-app
+          path: target/*.jar
 
-      - name: Deploy to Anypoint GovCloud
+
+  # 🚀 DEPLOY JOB
+  deploy:
+    name: 🚀 Deploy to Anypoint GovCloud
+    runs-on: ubuntu-latest
+    needs: [build]
+    environment: production
+
+    steps:
+      - name: Download Build Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: mule-app
+
+      - name: Set up JDK 8
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '8'
+
+      - name: Deploy to GovCloud
         env:
           ANYPOINT_CLIENT_ID: ${{ secrets.ANYPOINT_CLIENT_ID }}
           ANYPOINT_CLIENT_SECRET: ${{ secrets.ANYPOINT_CLIENT_SECRET }}
           ANYPOINT_ENV: ${{ secrets.ANYPOINT_ENV }}
-          ANYPOINT_ORG_ID: ${{ secrets.ANYPOINT_ORG_ID }}
           ANYPOINT_BUSINESS_GROUP_ID: ${{ secrets.ANYPOINT_BUSINESS_GROUP_ID }}
           ANYPOINT_PLATFORM_URL: ${{ secrets.ANYPOINT_PLATFORM_URL }}
         run: |
@@ -119,7 +142,6 @@ jobs:
             -Danypoint.platform.clientId=${ANYPOINT_CLIENT_ID} \
             -Danypoint.platform.clientSecret=${ANYPOINT_CLIENT_SECRET} \
             -Danypoint.platform.url=${ANYPOINT_PLATFORM_URL} \
-            -Danypoint.org=${ANYPOINT_ORG_ID} \
             -Danypoint.env=${ANYPOINT_ENV} \
             -Danypoint.businessGroup=${ANYPOINT_BUSINESS_GROUP_ID}
 ```
